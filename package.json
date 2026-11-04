@@ -1,0 +1,14 @@
+{
+  "name": "calculateur-prix-3d",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Calculateur de prix d'impression 3D avec base de machines, devis multi-lignes et facture micro-entreprise",
+  "license": "MIT",
+  "author": "Henri Jausions",
+  "scripts": {
+    "test": "node tests/test-moteur.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.50.0"
+  }
+}

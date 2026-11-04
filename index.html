@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculateur de prix — Impression 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#00bcd4; --primary-dim:#0097a7;
+  --secondary:#ff5722;
+  --dark:#101214; --panel:#181b1e; --panel-2:#1f2327;
+  --light:#eceff1; --muted:#8d9499;
+  --border:#2d3338;
+  --success:#4caf50; --warn:#ffb300; --danger:#ef5350;
+  --radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scrollbar-color:#3a4148 var(--dark)}
+body{
+  font-family:'Outfit',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  background:var(--dark); color:var(--light);
+  font-size:14px; line-height:1.45; min-height:100vh;
+}
+/* ---------- App shell ---------- */
+.topbar{
+  position:sticky; top:0; z-index:50;
+  display:flex; align-items:center; gap:.75rem; flex-wrap:wrap;
+  padding:.7rem 1rem; background:rgba(16,18,20,.92);
+  backdrop-filter:blur(8px); border-bottom:1px solid var(--border);
+}
+.topbar h1{font-size:1.05rem; font-weight:600; color:var(--primary); letter-spacing:.2px; white-space:nowrap}
+.topbar h1 span{color:var(--muted); font-weight:400; font-size:.8rem; margin-left:.4rem}
+.topbar .spacer{flex:1}
+.layout{
+  display:grid; grid-template-columns:minmax(340px,400px) 1fr;
+  gap:1rem; padding:1rem; align-items:start;
+}
+.col-right{position:sticky; top:60px}
+@media(max-width:1080px){
+  .layout{grid-template-columns:1fr}
+  .col-right{position:static}
+}
+/* ---------- Panels & accordions ---------- */
+.panel{
+  background:var(--panel); border:1px solid var(--border);
+  border-radius:var(--radius); margin-bottom:.75rem; overflow:hidden;
+}
+.panel > summary{
+  list-style:none; cursor:pointer; padding:.7rem .9rem;
+  font-weight:600; font-size:.92rem; color:var(--secondary);
+  display:flex; align-items:center; gap:.5rem;
+  user-select:none; background:var(--panel-2);
+}
+.panel > summary::-webkit-details-marker{display:none}
+.panel > summary::before{
+  content:'▸'; color:var(--muted); font-size:.8rem;
+  transition:transform .15s ease; display:inline-block;
+}
+.panel[open] > summary::before{transform:rotate(90deg)}
+.panel > summary .tag{
+  margin-left:auto; font-weight:500; font-size:.72rem; color:var(--muted);
+  background:rgba(255,255,255,.05); padding:.12rem .45rem; border-radius:20px;
+  border:1px solid var(--border); white-space:nowrap;
+}
+.panel-body{padding:.9rem}
+/* ---------- Form ---------- */
+.field{margin-bottom:.7rem}
+.field:last-child{margin-bottom:0}
+label{display:block; margin-bottom:.25rem; font-size:.8rem; color:var(--muted); font-weight:500}
+label .hint{color:#5f676c; font-weight:400}
+input,select,textarea{
+  width:100%; padding:7px 9px; border-radius:7px;
+  border:1px solid var(--border); background:#0d0f11; color:var(--light);
+  font-family:inherit; font-size:.88rem; transition:border-color .15s,box-shadow .15s;
+}
+input[type=number]{-moz-appearance:textfield}
+textarea{resize:vertical; min-height:56px}
+select option{background:#15181b; color:var(--light)}
+input:focus,select:focus,textarea:focus{
+  outline:none; border-color:var(--primary); box-shadow:0 0 0 2px rgba(0,188,212,.18);
+}
+input:disabled,select:disabled{opacity:.5; cursor:not-allowed}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:.5rem}
+.grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:.5rem}
+.inline-check{display:flex; align-items:center; gap:.5rem; margin-bottom:.6rem}
+.inline-check input{width:auto; accent-color:var(--primary)}
+.inline-check label{margin:0; color:var(--light); font-size:.85rem}
+small.note{display:block; color:#5f676c; font-size:.74rem; margin-top:.25rem; line-height:1.35}
+/* ---------- Buttons ---------- */
+button{
+  font-family:inherit; font-size:.82rem; font-weight:600; cursor:pointer;
+  border:1px solid var(--border); background:var(--panel-2); color:var(--light);
+  padding:7px 12px; border-radius:7px; transition:.15s;
+  display:inline-flex; align-items:center; gap:.35rem; white-space:nowrap;
+}
+button:hover{background:#2a3036; border-color:#3d454b}
+button.primary{background:var(--primary); color:#06282d; border-color:transparent}
+button.primary:hover{background:#26cfe4}
+button.accent{background:var(--secondary); color:#2a0d02; border-color:transparent}
+button.accent:hover{background:#ff7043}
+button.ghost{background:transparent}
+button.icon{padding:5px 8px; font-size:.9rem; line-height:1}
+button.danger{color:var(--danger)}
+button.danger:hover{background:rgba(239,83,80,.12); border-color:var(--danger)}
+/* ---------- Machine badge ---------- */
+.badge{
+  display:inline-flex; align-items:center; gap:.3rem;
+  font-size:.7rem; font-weight:600; padding:.15rem .5rem; border-radius:20px;
+  border:1px solid; letter-spacing:.2px;
+}
+.badge.mesure{color:var(--success); border-color:rgba(76,175,80,.4); background:rgba(76,175,80,.1)}
+.badge.estime{color:var(--warn); border-color:rgba(255,179,0,.4); background:rgba(255,179,0,.1)}
+.badge.perso{color:var(--primary); border-color:rgba(0,188,212,.4); background:rgba(0,188,212,.1)}
+.specbox{
+  background:#0d0f11; border:1px solid var(--border); border-radius:8px;
+  padding:.6rem .7rem; margin-bottom:.7rem; font-size:.78rem;
+}
+.specbox .head{display:flex; align-items:center; gap:.5rem; margin-bottom:.45rem; flex-wrap:wrap}
+.specbox .name{font-weight:600; color:var(--light); font-size:.85rem}
+.specrow{display:flex; justify-content:space-between; gap:1rem; padding:.12rem 0; color:var(--muted)}
+.specrow b{color:var(--light); font-weight:500; font-variant-numeric:tabular-nums}
+/* ---------- Parts table ---------- */
+.parts-head,.part-row{
+  display:grid;
+  grid-template-columns:minmax(120px,1.6fr) 96px 74px 58px 52px 66px 62px 72px 30px;
+  gap:.4rem; align-items:center;
+}
+.parts-head{
+  font-size:.7rem; color:var(--muted); font-weight:600; text-transform:uppercase;
+  letter-spacing:.4px; padding:0 .2rem .35rem; border-bottom:1px solid var(--border);
+}
+.parts-head span{text-align:center}
+.parts-head span:first-child{text-align:left}
+.part-row{padding:.35rem .2rem; border-bottom:1px solid rgba(255,255,255,.04)}
+.part-row input,.part-row select{padding:6px 6px; font-size:.82rem; text-align:center}
+.part-row input.name{text-align:left}
+.parts-wrap{overflow-x:auto}
+.parts-inner{min-width:720px}
+.part-sub{
+  grid-column:1/-1; font-size:.72rem; color:#5f676c; padding:.1rem .2rem .3rem;
+  display:flex; gap:1rem; flex-wrap:wrap;
+}
+.part-sub b{color:var(--muted); font-weight:500; font-variant-numeric:tabular-nums}
+/* ---------- Results ---------- */
+.res-grid{display:grid; grid-template-columns:1fr 1fr; gap:.75rem}
+@media(max-width:640px){.res-grid{grid-template-columns:1fr}}
+.res-block h3{
+  font-size:.75rem; text-transform:uppercase; letter-spacing:.6px;
+  color:var(--muted); margin-bottom:.5rem; font-weight:600;
+  border-bottom:1px solid var(--border); padding-bottom:.3rem;
+}
+.line{
+  display:flex; justify-content:space-between; gap:1rem;
+  padding:.28rem 0; font-size:.84rem; border-bottom:1px dashed rgba(255,255,255,.06);
+}
+.line:last-child{border-bottom:none}
+.line span{color:var(--muted)}
+.line b{color:var(--light); font-weight:500; font-variant-numeric:tabular-nums; white-space:nowrap}
+.line.sum{border-top:1px solid var(--border); margin-top:.35rem; padding-top:.5rem}
+.line.sum span{color:var(--light); font-weight:600}
+.line.sum b{color:var(--primary)}
+.line.neg b{color:var(--warn)}
+.hero{
+  background:linear-gradient(135deg,rgba(0,188,212,.14),rgba(255,87,34,.10));
+  border:1px solid rgba(0,188,212,.3); border-radius:var(--radius);
+  padding:.85rem 1rem; margin-top:.75rem;
+  display:grid; grid-template-columns:1fr 1fr; gap:.75rem;
+}
+@media(max-width:520px){.hero{grid-template-columns:1fr}}
+.hero .k{font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.5px}
+.hero .v{font-size:1.55rem; font-weight:700; color:var(--success); font-variant-numeric:tabular-nums; line-height:1.15}
+.hero .v.alt{color:var(--primary); font-size:1.25rem}
+.hero .sub{font-size:.74rem; color:var(--muted)}
+.bar{display:flex; height:8px; border-radius:5px; overflow:hidden; margin:.7rem 0 .35rem; background:#0d0f11}
+.bar i{display:block; height:100%}
+.legend{display:flex; flex-wrap:wrap; gap:.15rem .9rem; font-size:.72rem; color:var(--muted)}
+.legend i{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:.3rem}
+.warnbox{
+  background:rgba(255,179,0,.08); border:1px solid rgba(255,179,0,.3);
+  color:#ffc94d; border-radius:8px; padding:.5rem .65rem; font-size:.78rem; margin-top:.6rem;
+}
+.warnbox.err{background:rgba(239,83,80,.08); border-color:rgba(239,83,80,.35); color:#ff8a85}
+.empty{color:var(--muted); font-size:.85rem; padding:1.2rem; text-align:center}
+/* ---------- Modal / Facture ---------- */
+.overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.72); z-index:100;
+  display:none; overflow-y:auto; padding:1.2rem;
+}
+.overlay.on{display:block}
+.modal{
+  max-width:900px; margin:0 auto; background:var(--panel);
+  border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;
+}
+.modal-head{
+  display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;
+  padding:.7rem .9rem; background:var(--panel-2); border-bottom:1px solid var(--border);
+}
+.modal-head h2{font-size:.95rem; color:var(--primary); font-weight:600}
+.modal-head .spacer{flex:1}
+.modal-body{padding:1rem; max-height:none}
+.doc-settings{
+  display:grid; grid-template-columns:1fr 1fr; gap:1rem;
+  padding:.9rem; background:#0d0f11; border:1px solid var(--border);
+  border-radius:8px; margin-bottom:1rem;
+}
+@media(max-width:700px){.doc-settings{grid-template-columns:1fr}}
+.doc-settings h4{
+  font-size:.72rem; text-transform:uppercase; letter-spacing:.6px;
+  color:var(--secondary); margin-bottom:.5rem; font-weight:600;
+}
+/* ---------- Document (facture / devis) ---------- */
+#doc{
+  background:#fff; color:#1a1a1a; border-radius:6px;
+  padding:16mm 14mm; font-size:11px; line-height:1.5;
+}
+#doc *{color:inherit}
+#doc .d-top{display:flex; justify-content:space-between; gap:20px; align-items:flex-start}
+#doc .d-logo{max-height:70px; max-width:200px; object-fit:contain; margin-bottom:6px}
+#doc .d-emit{font-size:10.5px; line-height:1.55}
+#doc .d-emit .n{font-weight:700; font-size:13px}
+#doc .d-title{text-align:right}
+#doc .d-title h1{font-size:24px; font-weight:700; letter-spacing:1px; color:#0f7f8c; margin-bottom:4px}
+#doc .d-title .meta{font-size:10.5px; line-height:1.6}
+#doc .d-title .meta b{font-weight:600}
+#doc .d-client{
+  margin:16px 0 14px; padding:9px 11px; background:#f4f7f8;
+  border-left:3px solid #0f7f8c; font-size:10.5px; line-height:1.55;
+}
+#doc .d-client .lbl{font-size:9px; text-transform:uppercase; letter-spacing:.8px; color:#6b7478; font-weight:600}
+#doc .d-client .n{font-weight:700; font-size:12px}
+#doc table{width:100%; border-collapse:collapse; margin-bottom:10px; font-size:10.5px}
+#doc thead th{
+  background:#0f7f8c; color:#fff !important; font-weight:600; text-align:right;
+  padding:6px 7px; font-size:9.5px; text-transform:uppercase; letter-spacing:.5px;
+}
+#doc thead th:first-child{text-align:left}
+#doc tbody td{padding:6px 7px; border-bottom:1px solid #e2e7e9; text-align:right; vertical-align:top; font-variant-numeric:tabular-nums}
+#doc tbody td:first-child{text-align:left}
+#doc tbody tr:nth-child(even){background:#fafcfc}
+#doc td .desc-sub{display:block; font-size:9px; color:#7a8286 !important; margin-top:1px}
+#doc .d-tot{display:flex; justify-content:flex-end; margin-bottom:12px}
+#doc .d-tot table{width:auto; min-width:260px; margin:0}
+#doc .d-tot td{border:none; padding:3px 7px}
+#doc .d-tot tr.grand td{
+  border-top:2px solid #0f7f8c; font-weight:700; font-size:13px;
+  color:#0f7f8c !important; padding-top:6px;
+}
+#doc .d-pay{
+  display:flex; gap:16px; margin-bottom:12px; padding:9px 11px;
+  background:#f4f7f8; font-size:10px; line-height:1.55;
+}
+#doc .d-pay > div{flex:1}
+#doc .d-pay .lbl{font-size:9px; text-transform:uppercase; letter-spacing:.8px; color:#6b7478; font-weight:600; display:block}
+#doc .d-legal{
+  border-top:1px solid #d9e0e2; padding-top:8px; margin-top:auto;
+  font-size:8.5px; line-height:1.6; color:#6b7478 !important;
+}
+#doc .d-legal b{color:#4a5256 !important}
+#doc .d-sign{margin:14px 0 10px; font-size:10px; display:flex; justify-content:flex-end}
+#doc .d-sign .box{border:1px dashed #b8c1c4; padding:8px 12px; min-width:200px; min-height:56px; font-size:9.5px; color:#7a8286 !important}
+#doc .d-notes{font-size:10px; margin-bottom:12px; white-space:pre-wrap}
+/* ---------- Print ---------- */
+@media print{
+  @page{size:A4; margin:0}
+  html,body{background:#fff !important}
+  body > *{display:none !important}
+  .overlay.on{
+    display:block !important; position:static !important; padding:0 !important;
+    background:#fff !important; overflow:visible !important;
+  }
+  .overlay.on .modal{
+    max-width:none !important; margin:0 !important; border:none !important;
+    border-radius:0 !important; background:#fff !important;
+  }
+  .modal-head,.doc-settings,.no-print{display:none !important}
+  .modal-body{padding:0 !important}
+  #doc{border-radius:0 !important; padding:14mm 13mm !important; font-size:10.5px !important}
+  #doc .d-legal{page-break-inside:avoid}
+  #doc table{page-break-inside:auto}
+  #doc tr{page-break-inside:avoid}
+  #doc thead{display:table-header-group}
+  #doc thead th{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+  #doc .d-client,#doc .d-pay,#doc tbody tr:nth-child(even){-webkit-print-color-adjust:exact; print-color-adjust:exact}
+}
+/* ---------- Misc ---------- */
+.toast{
+  position:fixed; bottom:1rem; left:50%; transform:translateX(-50%) translateY(200%); opacity:0; visibility:hidden; pointer-events:none;
+  background:var(--panel-2); border:1px solid var(--primary); color:var(--light);
+  padding:.6rem 1rem; border-radius:8px; font-size:.85rem; z-index:200;
+  transition:transform .25s ease, opacity .25s ease, visibility .25s; box-shadow:0 6px 24px rgba(0,0,0,.5);
+}
+.toast.on{transform:translateX(-50%) translateY(0); opacity:1; visibility:visible}
+.rowbtns{display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.6rem}
+.subtle-link{color:var(--primary); font-size:.76rem; text-decoration:none; border-bottom:1px dotted}
+.subtle-link:hover{color:#26cfe4}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Calculateur prix impression 3D <span id="verTag">v2</span></h1>
+  <div class="spacer"></div>
+  <button class="ghost" onclick="exportJSON()" title="Sauvegarder toute la configuration dans un fichier">⭳ Export</button>
+  <button class="ghost" onclick="document.getElementById('importFile').click()" title="Recharger une configuration">⭱ Import</button>
+  <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(this)">
+  <button class="ghost danger" onclick="resetAll()">Réinit.</button>
+  <button class="accent" onclick="openDoc('devis')">Devis</button>
+  <button class="primary" onclick="openDoc('facture')">Facture</button>
+</div>
+
+<div class="layout">
+<!-- =================== COLONNE GAUCHE : PARAMÈTRES =================== -->
+<div class="col-left">
+
+  <!-- ---------- MACHINE ---------- -->
+  <details class="panel" open>
+    <summary>Machine <span class="tag" id="tagMachine">—</span></summary>
+    <div class="panel-body">
+      <div class="grid2">
+        <div class="field">
+          <label for="mBrand">Marque</label>
+          <select id="mBrand" onchange="onBrand()"></select>
+        </div>
+        <div class="field">
+          <label for="mModel">Modèle</label>
+          <select id="mModel" onchange="onModel()"></select>
+        </div>
+      </div>
+
+      <div class="specbox" id="specbox"></div>
+
+      <div id="customMachine" style="display:none">
+        <div class="grid2">
+          <div class="field">
+            <label>Marque <span class="hint">(libre)</span></label>
+            <input type="text" id="cBrand" placeholder="Ex : Voron" oninput="recalc()">
+          </div>
+          <div class="field">
+            <label>Modèle <span class="hint">(libre)</span></label>
+            <input type="text" id="cModel" placeholder="Ex : Trident 300" oninput="recalc()">
+          </div>
+        </div>
+        <div class="field">
+          <label>Gabarit <span class="hint">— pré-remplit une estimation</span></label>
+          <select id="cClass" onchange="applyClassEstimate()">
+            <option value="">— choisir un gabarit —</option>
+            <option value="mini">Petit format ouvert (≤ 200 mm) — type Mini/A1 mini</option>
+            <option value="bedslinger">Bedslinger 220-250 mm — type Ender/Kobra</option>
+            <option value="corexy">CoreXY fermé 250 mm — type P1S/K1</option>
+            <option value="corexy-l">CoreXY fermé grand format 300-350 mm</option>
+            <option value="chamber">Enceinte chauffée active (ABS/PC industriel)</option>
+            <option value="idex">IDEX / double extrudeur</option>
+          </select>
+        </div>
+        <button class="ghost" onclick="webLookup()" style="width:100%;justify-content:center;margin-bottom:.7rem">
+          🔎 Chercher les specs de cette machine sur le web
+        </button>
+      </div>
+
+      <div class="grid3">
+        <div class="field">
+          <label>P. moyenne <span class="hint">(W)</span></label>
+          <input type="number" id="pAvg" value="115" step="1" oninput="markCustomSpec();recalc()">
+        </div>
+        <div class="field">
+          <label>Pic chauffe <span class="hint">(W)</span></label>
+          <input type="number" id="pPeak" value="1100" step="10" oninput="markCustomSpec();recalc()">
+        </div>
+        <div class="field">
+          <label>Veille <span class="hint">(W)</span></label>
+          <input type="number" id="pIdle" value="8" step="1" oninput="markCustomSpec();recalc()">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Préchauffe <span class="hint">(min / lancement)</span></label>
+          <input type="number" id="preheatMin" value="5" step="1" oninput="markCustomSpec();recalc()">
+        </div>
+        <div class="field">
+          <label>Enceinte chauffée <span class="hint">(W)</span></label>
+          <input type="number" id="chamberW" value="0" step="10" oninput="markCustomSpec();recalc()">
+        </div>
+      </div>
+      <small class="note">
+        La puissance moyenne est la consommation réelle en régime, pas la puissance nominale de l'alim.
+        Le pic ne s'applique qu'à la préchauffe, une fois par lancement — pas par pièce.
+      </small>
+    </div>
+  </details>
+
+  <!-- ---------- ÉNERGIE ---------- -->
+  <details class="panel">
+    <summary>Énergie &amp; environnement <span class="tag" id="tagEnergie">—</span></summary>
+    <div class="panel-body">
+      <div class="grid2">
+        <div class="field">
+          <label>Prix électricité <span class="hint">(€/kWh TTC)</span></label>
+          <input type="number" id="prixElec" value="0.2516" step="0.0001" oninput="recalc()">
+        </div>
+        <div class="field">
+          <label>Ambiance atelier</label>
+          <select id="ambient" onchange="recalc()">
+            <option value="0.95">Chaud / été (≥ 25 °C)</option>
+            <option value="1" selected>Pièce chauffée (20 °C)</option>
+            <option value="1.12">Local frais (12-15 °C)</option>
+            <option value="1.25">Garage non chauffé (&lt; 10 °C)</option>
+          </select>
+        </div>
+      </div>
+      <small class="note">Tarif bleu réglementé janvier 2026 : 0,2516 €/kWh en option Base ; 0,2700 HP / 0,2068 HC.</small>
+
+      <div class="inline-check" style="margin-top:.8rem">
+        <input type="checkbox" id="idleOn" onchange="recalc()">
+        <label for="idleOn">Compter la veille entre les impressions</label>
+      </div>
+      <div class="field" id="idleWrap" style="display:none">
+        <label>Heures de veille imputées à la commande</label>
+        <input type="number" id="idleH" value="0" step="0.5" oninput="recalc()">
+      </div>
+
+      <div class="inline-check">
+        <input type="checkbox" id="dryerOn" onchange="recalc()">
+        <label for="dryerOn">Séchoir à filament actif pendant l'impression</label>
+      </div>
+      <div id="dryerWrap" style="display:none">
+        <div class="grid2">
+          <div class="field">
+            <label>Puissance séchoir <span class="hint">(W)</span></label>
+            <input type="number" id="dryerW" value="70" step="5" oninput="recalc()">
+          </div>
+          <div class="field">
+            <label>Bobines en charge</label>
+            <input type="number" id="dryerSpools" value="4" min="1" step="1" oninput="recalc()">
+          </div>
+        </div>
+        <small class="note">
+          Sunlu S4 : 200 W annoncés mais ~60-80 W en moyenne une fois en température.
+          Le coût est divisé par le nombre de bobines : le séchoir sert aussi aux autres travaux.
+        </small>
+      </div>
+    </div>
+  </details>
+
+  <!-- ---------- USURE ---------- -->
+  <details class="panel">
+    <summary>Usure &amp; amortissement <span class="tag" id="tagUsure">—</span></summary>
+    <div class="panel-body">
+      <div class="inline-check">
+        <input type="checkbox" id="wearAuto" checked onchange="toggleWear();recalc()">
+        <label for="wearAuto">Calculer automatiquement le coût horaire machine</label>
+      </div>
+
+      <div id="wearAutoWrap">
+        <div class="grid2">
+          <div class="field">
+            <label>Prix d'achat machine <span class="hint">(€)</span></label>
+            <input type="number" id="mPrice" value="1100" step="10" oninput="recalc()">
+          </div>
+          <div class="field">
+            <label>Durée de vie <span class="hint">(h)</span></label>
+            <input type="number" id="mLife" value="6000" step="100" oninput="recalc()">
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label>Valeur résiduelle <span class="hint">(%)</span></label>
+            <input type="number" id="mResid" value="10" step="5" oninput="recalc()">
+          </div>
+          <div class="field">
+            <label>Maintenance <span class="hint">(€/an)</span></label>
+            <input type="number" id="mMaint" value="60" step="10" oninput="recalc()">
+          </div>
+        </div>
+        <div class="field">
+          <label>Heures d'impression par an</label>
+          <input type="number" id="mHYear" value="800" step="50" oninput="recalc()">
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label>Buse : prix / durée <span class="hint">(€ / h)</span></label>
+            <div class="grid2">
+              <input type="number" id="nozPrice" value="18" step="1" oninput="recalc()">
+              <input type="number" id="nozLife" value="400" step="50" oninput="recalc()">
+            </div>
+          </div>
+          <div class="field">
+            <label>Plateau : prix / durée <span class="hint">(€ / h)</span></label>
+            <div class="grid2">
+              <input type="number" id="plaPrice" value="30" step="1" oninput="recalc()">
+              <input type="number" id="plaLife" value="800" step="50" oninput="recalc()">
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label>Autres pièces d'usure <span class="hint">(courroies, galets, PTFE… €/h)</span></label>
+          <input type="number" id="miscWear" value="0.02" step="0.01" oninput="recalc()">
+        </div>
+      </div>
+
+      <div class="field" id="wearManualWrap" style="display:none">
+        <label>Coût horaire machine imposé <span class="hint">(€/h)</span></label>
+        <input type="number" id="wearManual" value="0.5" step="0.05" oninput="recalc()">
+      </div>
+
+      <div class="specbox" id="wearBox" style="margin:.7rem 0 0"></div>
+    </div>
+  </details>
+
+  <!-- ---------- MAIN D'OEUVRE ---------- -->
+  <details class="panel">
+    <summary>Main-d'œuvre <span class="tag" id="tagMO">—</span></summary>
+    <div class="panel-body">
+      <div class="grid2">
+        <div class="field">
+          <label>Taux modélisation / CAO <span class="hint">(€/h)</span></label>
+          <input type="number" id="rateDesign" value="40" step="1" oninput="recalc()">
+        </div>
+        <div class="field">
+          <label>Taux préparation <span class="hint">(€/h)</span></label>
+          <input type="number" id="ratePrep" value="30" step="1" oninput="recalc()">
+        </div>
+      </div>
+      <div class="field">
+        <label>Taux post-traitement <span class="hint">(€/h)</span></label>
+        <input type="number" id="ratePost" value="25" step="1" oninput="recalc()">
+      </div>
+      <small class="note">Références marché FR : modélisation 30-60 €/h, préparation/slicing 15-30 min par référence, post-traitement 20-40 % du temps total.</small>
+    </div>
+  </details>
+
+  <!-- ---------- COMMANDE ---------- -->
+  <details class="panel" open>
+    <summary>Coûts fixes de commande <span class="tag" id="tagFixe">comptés 1 ×</span></summary>
+    <div class="panel-body">
+      <div class="field">
+        <label>Temps de modélisation <span class="hint">(h : min) — pour toute la commande</span></label>
+        <div class="grid2">
+          <input type="number" id="designH" value="0" min="0" placeholder="h" oninput="recalc()">
+          <input type="number" id="designM" value="0" min="0" placeholder="min" oninput="recalc()">
+        </div>
+      </div>
+      <div class="field">
+        <label>Amortir le dessin sur <span class="hint">— nombre de commandes prévues</span></label>
+        <input type="number" id="designAmort" value="1" min="1" step="1" oninput="recalc()">
+        <small class="note">Modèle réutilisable ? Mettez 5 : le client ne paie qu'un cinquième de la CAO, et vous rentabilisez sur les commandes suivantes.</small>
+      </div>
+      <div class="field">
+        <label>Préparation / slicing / réglages <span class="hint">(h : min)</span></label>
+        <div class="grid2">
+          <input type="number" id="prepH" value="0" min="0" placeholder="h" oninput="recalc()">
+          <input type="number" id="prepM" value="20" min="0" placeholder="min" oninput="recalc()">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Frais fixes <span class="hint">(emballage, admin — €)</span></label>
+          <input type="number" id="fixedFees" value="2" step="0.5" oninput="recalc()">
+        </div>
+        <div class="field">
+          <label>Expédition <span class="hint">(€, hors marge)</span></label>
+          <input type="number" id="shipping" value="0" step="0.5" oninput="recalc()">
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <!-- ---------- MARGE ---------- -->
+  <details class="panel" open>
+    <summary>Marge, risque &amp; arrondi <span class="tag" id="tagMarge">—</span></summary>
+    <div class="panel-body">
+      <div class="grid2">
+        <div class="field">
+          <label>Marge <span class="hint">(%)</span></label>
+          <input type="number" id="marge" value="30" step="1" oninput="recalc()">
+        </div>
+        <div class="field">
+          <label>Taux d'échec <span class="hint">(%)</span></label>
+          <input type="number" id="failRate" value="8" step="1" min="0" max="60" oninput="recalc()">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Perte matière <span class="hint">(purge, supports, brim — %)</span></label>
+          <input type="number" id="wastePct" value="8" step="1" min="0" oninput="recalc()">
+        </div>
+        <div class="field">
+          <label>Remise commerciale <span class="hint">(%)</span></label>
+          <input type="number" id="discount" value="0" step="1" min="0" max="100" oninput="recalc()">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Arrondi du prix unitaire</label>
+          <select id="rounding" onchange="recalc()">
+            <option value="0.01">Au centime</option>
+            <option value="0.05">À 5 centimes</option>
+            <option value="0.1" selected>À 10 centimes</option>
+            <option value="0.5">À 50 centimes</option>
+            <option value="1">À l'euro</option>
+            <option value="psy">Psychologique (,90)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Commande minimum <span class="hint">(€ HT)</span></label>
+          <input type="number" id="minOrder" value="0" step="1" oninput="recalc()">
+        </div>
+      </div>
+      <small class="note">
+        Le taux d'échec s'applique à la matière, l'électricité et le temps machine — pas au post-traitement,
+        qui n'est réalisé que sur les pièces réussies.
+      </small>
+    </div>
+  </details>
+
+  <!-- ---------- MATIERES ---------- -->
+  <details class="panel">
+    <summary>Matières &amp; tarifs bobine <span class="tag" id="tagMat">—</span></summary>
+    <div class="panel-body">
+      <div id="matList"></div>
+      <div class="rowbtns">
+        <button class="ghost" onclick="addMaterial()">+ Ajouter une matière</button>
+      </div>
+      <small class="note">
+        Le facteur énergie traduit la température de buse et de plateau : un ABS à 100 °C de lit
+        consomme ~40 % de plus qu'un PLA à 60 °C sur la même durée.
+      </small>
+    </div>
+  </details>
+
+</div>
+
+<!-- =================== COLONNE DROITE : PIÈCES + RÉSULTATS =================== -->
+<div class="col-right">
+
+  <details class="panel" open>
+    <summary>Pièces de la commande <span class="tag" id="tagParts">—</span></summary>
+    <div class="panel-body">
+      <div class="parts-wrap">
+        <div class="parts-inner">
+          <div class="parts-head">
+            <span>Désignation</span>
+            <span>Matière</span>
+            <span>Poids /pc<br>(g)</span>
+            <span>h</span>
+            <span>min</span>
+            <span>Pcs /<br>plateau</span>
+            <span>Qté</span>
+            <span>Post-tr.<br>(min/pc)</span>
+            <span></span>
+          </div>
+          <div id="partsBody"></div>
+        </div>
+      </div>
+      <div class="rowbtns">
+        <button class="primary" onclick="addPart()">+ Ajouter une pièce</button>
+        <button class="ghost" onclick="duplicateLast()">⧉ Dupliquer la dernière</button>
+      </div>
+      <small class="note">
+        <b>Pcs / plateau</b> : nombre de pièces imprimées en une seule fois. Le temps saisi est celui d'un plateau
+        complet. Avec 4 pcs/plateau et 10 pièces, on compte 3 lancements, pas 10 — c'est là que se joue l'écart
+        avec la réalité.
+      </small>
+      <div id="partWarn"></div>
+    </div>
+  </details>
+
+  <details class="panel" open>
+    <summary>Résultat <span class="tag" id="tagResult">—</span></summary>
+    <div class="panel-body">
+      <div id="results"><div class="empty">Ajoutez une pièce pour lancer le calcul.</div></div>
+    </div>
+  </details>
+
+</div>
+</div>
+
+<!-- =================== MODALE DOCUMENT =================== -->
+<div class="overlay" id="docOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="docTitle">Facture</h2>
+      <div class="spacer"></div>
+      <button class="ghost" onclick="closeDoc()">Fermer</button>
+      <button class="ghost" onclick="downloadDocHTML()">⭳ HTML</button>
+      <button class="primary" onclick="window.print()">🖨 Imprimer / PDF</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="doc-settings no-print">
+        <div>
+          <h4>Émetteur</h4>
+          <div class="field">
+            <label>Nom / raison sociale</label>
+            <input type="text" id="eName" placeholder="Prénom Nom" oninput="renderDoc()">
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label>Forme</label>
+              <select id="eForm" onchange="renderDoc()">
+                <option value="EI">Entrepreneur individuel (EI)</option>
+                <option value="EIRL">EI — mention longue</option>
+                <option value="">Aucune mention</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>SIREN <span class="hint">(obligatoire)</span></label>
+              <input type="text" id="eSiren" placeholder="123 456 789" oninput="renderDoc()">
+            </div>
+          </div>
+          <div class="field">
+            <label>Adresse</label>
+            <textarea id="eAddr" placeholder="12 rue de l'Atelier&#10;35000 Rennes" oninput="renderDoc()"></textarea>
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label>Email</label>
+              <input type="text" id="eMail" oninput="renderDoc()">
+            </div>
+            <div class="field">
+              <label>Téléphone</label>
+              <input type="text" id="ePhone" oninput="renderDoc()">
+            </div>
+          </div>
+          <div class="field">
+            <label>IBAN <span class="hint">(optionnel)</span></label>
+            <input type="text" id="eIban" oninput="renderDoc()">
+          </div>
+          <div class="field">
+            <label>Logo</label>
+            <input type="file" id="eLogo" accept="image/*" onchange="loadLogo(this)">
+            <div class="rowbtns" id="logoBtns" style="display:none">
+              <button class="ghost danger" onclick="clearLogo()">Retirer le logo</button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4>Client &amp; document</h4>
+          <div class="field">
+            <label>Client — nom</label>
+            <input type="text" id="cName" placeholder="Société Dupont" oninput="renderDoc()">
+          </div>
+          <div class="field">
+            <label>Client — adresse</label>
+            <textarea id="cAddr" oninput="renderDoc()"></textarea>
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label>SIREN client <span class="hint">(pro)</span></label>
+              <input type="text" id="cSiren" oninput="renderDoc()">
+            </div>
+            <div class="field">
+              <label>Type de client</label>
+              <select id="cType" onchange="renderDoc()">
+                <option value="pro">Professionnel</option>
+                <option value="part">Particulier</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label>Numéro</label>
+              <input type="text" id="dNum" oninput="renderDoc()">
+            </div>
+            <div class="field">
+              <label>Date d'émission</label>
+              <input type="date" id="dDate" onchange="renderDoc()">
+            </div>
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label>Date de livraison / exécution</label>
+              <input type="date" id="dDeliv" onchange="renderDoc()">
+            </div>
+            <div class="field">
+              <label>Échéance <span class="hint">(jours)</span></label>
+              <input type="number" id="dTerms" value="30" step="1" oninput="renderDoc()">
+            </div>
+          </div>
+          <div class="grid2">
+            <div class="field">
+              <label>Régime TVA</label>
+              <select id="dVat" onchange="renderDoc()">
+                <option value="0" selected>Franchise en base (293 B)</option>
+                <option value="20">TVA 20 %</option>
+                <option value="10">TVA 10 %</option>
+                <option value="5.5">TVA 5,5 %</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Détail des lignes</label>
+              <select id="dMode" onchange="renderDoc()">
+                <option value="detail" selected>CAO / prépa en lignes séparées</option>
+                <option value="allin">Tout compris dans le prix pièce</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Mode de règlement</label>
+            <input type="text" id="dPay" value="Virement bancaire" oninput="renderDoc()">
+          </div>
+          <div class="field">
+            <label>Notes / conditions particulières</label>
+            <textarea id="dNotes" oninput="renderDoc()"></textarea>
+          </div>
+          <div class="inline-check">
+            <input type="checkbox" id="dShowDetail" onchange="renderDoc()">
+            <label for="dShowDetail">Afficher le détail technique sous chaque ligne</label>
+          </div>
+        </div>
+      </div>
+
+      <div id="doc"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+"use strict";
+/* =====================================================================
+   BASE MACHINES
+   pAvg  : puissance moyenne réelle en régime, impression PLA, 230 V (W)
+   pPeak : appel de puissance pendant la phase de chauffe (W)
+   pIdle : consommation en veille (W)
+   pre   : durée de préchauffe typique (min)
+   cham  : puissance de l'enceinte chauffée active (W, 0 = pas d'enceinte active)
+   price : prix d'achat indicatif TTC (€)
+   life  : durée de vie mécanique estimée (h)
+   src   : 'm' = valeurs issues de mesures au wattmètre publiées
+           'e' = estimation par gabarit (à recaler au wattmètre)
+   ===================================================================== */
+const MACHINES = {
+  "Bambu Lab": [
+    {m:"A1 mini",        pAvg:80,  pPeak:350,  pIdle:8,  pre:3, cham:0,   price:250,  life:4000, src:'m'},
+    {m:"A1",             pAvg:95,  pPeak:450,  pIdle:8,  pre:4, cham:0,   price:350,  life:4000, src:'m'},
+    {m:"P1P",            pAvg:95,  pPeak:800,  pIdle:8,  pre:5, cham:0,   price:500,  life:5000, src:'m'},
+    {m:"P1S",            pAvg:105, pPeak:1000, pIdle:8,  pre:5, cham:0,   price:620,  life:5000, src:'m'},
+    {m:"X1 Carbon",      pAvg:115, pPeak:1100, pIdle:8,  pre:5, cham:0,   price:1100, life:6000, src:'m'},
+    {m:"X1E",            pAvg:150, pPeak:1300, pIdle:11, pre:8, cham:120, price:2400, life:7000, src:'e'},
+    {m:"H2D",            pAvg:160, pPeak:1400, pIdle:10, pre:6, cham:100, price:2000, life:6000, src:'e'},
+    {m:"H2S",            pAvg:140, pPeak:1300, pIdle:10, pre:6, cham:80,  price:1400, life:6000, src:'e'}
+  ],
+  "Prusa Research": [
+    {m:"MINI+",          pAvg:60,  pPeak:160,  pIdle:5,  pre:3, cham:0,   price:450,  life:6000, src:'e'},
+    {m:"MK3S+",          pAvg:90,  pPeak:240,  pIdle:6,  pre:5, cham:0,   price:800,  life:8000, src:'m'},
+    {m:"MK4 / MK4S",     pAvg:95,  pPeak:240,  pIdle:6,  pre:4, cham:0,   price:1100, life:8000, src:'m'},
+    {m:"CORE One",       pAvg:120, pPeak:350,  pIdle:7,  pre:5, cham:0,   price:1250, life:8000, src:'e'},
+    {m:"XL (1 tête)",    pAvg:140, pPeak:490,  pIdle:10, pre:6, cham:0,   price:2200, life:8000, src:'m'},
+    {m:"XL (2 têtes)",   pAvg:182, pPeak:650,  pIdle:12, pre:6, cham:0,   price:2800, life:8000, src:'m'}
+  ],
+  "Creality": [
+    {m:"Ender 3 V3 SE",  pAvg:125, pPeak:270,  pIdle:6,  pre:5, cham:0,   price:200,  life:3000, src:'m'},
+    {m:"Ender 3 V3 KE",  pAvg:130, pPeak:350,  pIdle:6,  pre:5, cham:0,   price:250,  life:3000, src:'e'},
+    {m:"Ender 3 V3 Plus",pAvg:140, pPeak:400,  pIdle:6,  pre:6, cham:0,   price:330,  life:3000, src:'e'},
+    {m:"K1",             pAvg:100, pPeak:370,  pIdle:8,  pre:4, cham:0,   price:400,  life:4000, src:'m'},
+    {m:"K1C",            pAvg:110, pPeak:400,  pIdle:8,  pre:4, cham:0,   price:480,  life:4000, src:'e'},
+    {m:"K1 Max",         pAvg:150, pPeak:1000, pIdle:10, pre:5, cham:0,   price:700,  life:4000, src:'m'},
+    {m:"K2 Plus",        pAvg:170, pPeak:1100, pIdle:10, pre:6, cham:80,  price:1200, life:5000, src:'e'}
+  ],
+  "Anycubic": [
+    {m:"Kobra 2 Neo",    pAvg:105, pPeak:350,  pIdle:6,  pre:5, cham:0,   price:180,  life:3000, src:'e'},
+    {m:"Kobra 2 Pro",    pAvg:115, pPeak:400,  pIdle:6,  pre:5, cham:0,   price:250,  life:3000, src:'e'},
+    {m:"Kobra 3 / Combo",pAvg:180, pPeak:700,  pIdle:7,  pre:5, cham:0,   price:350,  life:3500, src:'m'},
+    {m:"Kobra S1 Combo", pAvg:130, pPeak:800,  pIdle:8,  pre:4, cham:0,   price:450,  life:4000, src:'e'}
+  ],
+  "Elegoo": [
+    {m:"Neptune 4",      pAvg:110, pPeak:350,  pIdle:6,  pre:5, cham:0,   price:220,  life:3000, src:'e'},
+    {m:"Neptune 4 Pro",  pAvg:115, pPeak:400,  pIdle:6,  pre:5, cham:0,   price:280,  life:3500, src:'e'},
+    {m:"Neptune 4 Max",  pAvg:150, pPeak:600,  pIdle:8,  pre:7, cham:0,   price:380,  life:3500, src:'e'},
+    {m:"Centauri Carbon",pAvg:110, pPeak:500,  pIdle:7,  pre:4, cham:0,   price:300,  life:4000, src:'e'},
+    {m:"Mars 4 Ultra (résine)",  pAvg:55, pPeak:144, pIdle:5, pre:0, cham:0, price:280, life:2000, src:'m'},
+    {m:"Saturn 4 Ultra (résine)",pAvg:65, pPeak:144, pIdle:5, pre:0, cham:0, price:400, life:2000, src:'m'}
+  ],
+  "Qidi Tech": [
+    {m:"Q1 Pro",         pAvg:140, pPeak:700,  pIdle:8,  pre:6, cham:60,  price:450,  life:5000, src:'e'},
+    {m:"Plus4",          pAvg:170, pPeak:1000, pIdle:10, pre:8, cham:100, price:750,  life:5000, src:'e'},
+    {m:"X-Max 3",        pAvg:160, pPeak:900,  pIdle:10, pre:8, cham:80,  price:900,  life:5000, src:'e'},
+    {m:"X-Plus 4",       pAvg:150, pPeak:850,  pIdle:9,  pre:7, cham:70,  price:700,  life:5000, src:'e'}
+  ],
+  "Sovol": [
+    {m:"SV06 Plus",      pAvg:120, pPeak:350,  pIdle:6,  pre:5, cham:0,   price:300,  life:3500, src:'e'},
+    {m:"SV08",           pAvg:140, pPeak:600,  pIdle:8,  pre:6, cham:0,   price:600,  life:4000, src:'e'}
+  ],
+  "Flashforge": [
+    {m:"Adventurer 5M",  pAvg:110, pPeak:400,  pIdle:6,  pre:4, cham:0,   price:300,  life:4000, src:'e'},
+    {m:"Adventurer 5M Pro",pAvg:120,pPeak:500, pIdle:7,  pre:5, cham:0,   price:400,  life:4000, src:'e'},
+    {m:"AD5X",           pAvg:115, pPeak:450,  pIdle:7,  pre:4, cham:0,   price:350,  life:4000, src:'e'}
+  ],
+  "Voron (DIY)": [
+    {m:"V0.2",           pAvg:90,  pPeak:400,  pIdle:8,  pre:5, cham:0,   price:700,  life:8000, src:'e'},
+    {m:"Trident 300",    pAvg:170, pPeak:800,  pIdle:10, pre:8, cham:0,   price:1200, life:8000, src:'e'},
+    {m:"2.4 (350)",      pAvg:200, pPeak:1000, pIdle:12, pre:10,cham:0,   price:1500, life:8000, src:'m'}
+  ],
+  "Ultimaker / UltiMaker": [
+    {m:"S3",             pAvg:120, pPeak:400,  pIdle:10, pre:6, cham:0,   price:4000, life:10000,src:'e'},
+    {m:"S5",             pAvg:140, pPeak:500,  pIdle:12, pre:7, cham:0,   price:6000, life:10000,src:'e'},
+    {m:"S7",             pAvg:150, pPeak:550,  pIdle:12, pre:7, cham:0,   price:7500, life:10000,src:'e'}
+  ],
+  "Raise3D": [
+    {m:"Pro3",           pAvg:180, pPeak:700,  pIdle:15, pre:9, cham:0,   price:5500, life:10000,src:'e'},
+    {m:"E2",             pAvg:130, pPeak:500,  pIdle:12, pre:6, cham:0,   price:3000, life:10000,src:'e'}
+  ],
+  "Artillery": [
+    {m:"Sidewinder X4 Plus",pAvg:120,pPeak:400,pIdle:6,  pre:5, cham:0,   price:300,  life:3000, src:'e'},
+    {m:"Hornet",         pAvg:100, pPeak:300,  pIdle:5,  pre:4, cham:0,   price:180,  life:2500, src:'e'}
+  ],
+  "Snapmaker": [
+    {m:"J1s",            pAvg:130, pPeak:500,  pIdle:8,  pre:5, cham:0,   price:1000, life:5000, src:'e'},
+    {m:"Artisan",        pAvg:160, pPeak:700,  pIdle:12, pre:7, cham:0,   price:3000, life:6000, src:'e'}
+  ]
+};
+
+/* Gabarits pour une machine non listée */
+const CLASSES = {
+  mini:       {pAvg:70,  pPeak:200,  pIdle:5,  pre:3,  cham:0,   price:300,  life:4000},
+  bedslinger: {pAvg:120, pPeak:350,  pIdle:6,  pre:5,  cham:0,   price:280,  life:3000},
+  corexy:     {pAvg:110, pPeak:600,  pIdle:8,  pre:5,  cham:0,   price:600,  life:5000},
+  "corexy-l": {pAvg:165, pPeak:1000, pIdle:10, pre:7,  cham:0,   price:1000, life:5000},
+  chamber:    {pAvg:190, pPeak:1200, pIdle:12, pre:10, cham:120, price:2500, life:8000},
+  idex:       {pAvg:150, pPeak:600,  pIdle:12, pre:6,  cham:0,   price:1500, life:6000}
+};
+
+/* =====================================================================
+   MATIÈRES
+   f  : facteur énergie (température buse + plateau vs PLA)
+   d  : densité (g/cm³), informatif
+   ===================================================================== */
+let MATERIALS = [
+  {n:"PLA",        p:22, d:1.24, f:1.00},
+  {n:"PLA-CF",     p:32, d:1.24, f:1.02},
+  {n:"PETG",       p:25, d:1.27, f:1.15},
+  {n:"PETG-CF/GF", p:32, d:1.30, f:1.18},
+  {n:"ABS",        p:23, d:1.04, f:1.35},
+  {n:"ASA",        p:30, d:1.07, f:1.40},
+  {n:"TPU 95A",    p:28, d:1.21, f:1.05},
+  {n:"PA / Nylon", p:45, d:1.14, f:1.50},
+  {n:"PA-CF",      p:65, d:1.18, f:1.55},
+  {n:"PC",         p:55, d:1.20, f:1.65},
+  {n:"PP",         p:40, d:0.91, f:1.20},
+  {n:"Résine std", p:35, d:1.10, f:0.55}
+];
+
+/* =====================================================================
+   OUTILS
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const num = id => { const e=$(id); const v=parseFloat(e && e.value); return isFinite(v)?v:0; };
+const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+const eur = v => (isFinite(v)?v:0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+const eur4 = v => (isFinite(v)?v:0).toLocaleString('fr-FR',{minimumFractionDigits:3,maximumFractionDigits:3})+' €';
+const nb = (v,d) => (isFinite(v)?v:0).toLocaleString('fr-FR',{minimumFractionDigits:d||0,maximumFractionDigits:d||0});
+const esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hhmm = h => { const t=Math.round(h*60); return Math.floor(t/60)+' h '+String(t%60).padStart(2,'0'); };
+
+/* Stockage tolérant : localStorage si disponible, mémoire sinon */
+const mem = {};
+const store = {
+  get(k){ try{ const v=localStorage.getItem(k); return v===null?(k in mem?mem[k]:null):v; }catch(e){ return k in mem?mem[k]:null; } },
+  set(k,v){ mem[k]=v; try{ localStorage.setItem(k,v); }catch(e){} }
+};
+
+let toastT;
+function toast(msg){
+  const t=$('toast'); t.textContent=msg; t.classList.add('on');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),2600);
+}
+
+function roundPrice(v, mode){
+  if(!isFinite(v)) return 0;
+  if(mode==='psy'){ let c=Math.floor(v)-0.1; while(c < v-1e-9) c+=1; return Math.round(c*100)/100; }
+  const s=parseFloat(mode)||0.01;
+  return Math.round(v/s)*s;
+}
+
+/* =====================================================================
+   MACHINE
+   ===================================================================== */
+let specSource = 'db';   // 'db' | 'custom'
+
+function buildBrands(){
+  const sel=$('mBrand');
+  sel.innerHTML = Object.keys(MACHINES).map(b=>`<option value="${esc(b)}">${esc(b)}</option>`).join('')
+    + '<option value="__custom">— Machine personnalisée —</option>';
+}
+function onBrand(){
+  const b=$('mBrand').value, sel=$('mModel');
+  if(b==='__custom'){
+    sel.innerHTML='<option value="">(saisie libre)</option>';
+    $('customMachine').style.display='block';
+    specSource='custom'; renderSpec(); recalc(); return;
+  }
+  $('customMachine').style.display='none';
+  sel.innerHTML = MACHINES[b].map((x,i)=>`<option value="${i}">${esc(x.m)}</option>`).join('');
+  onModel();
+}
+function currentMachine(){
+  const b=$('mBrand').value;
+  if(b==='__custom') return null;
+  const list=MACHINES[b]||[]; return list[parseInt($('mModel').value,10)]||null;
+}
+function onModel(){
+  const mc=currentMachine(); if(!mc) return;
+  $('pAvg').value=mc.pAvg; $('pPeak').value=mc.pPeak; $('pIdle').value=mc.pIdle;
+  $('preheatMin').value=mc.pre; $('chamberW').value=mc.cham;
+  if($('wearAuto').checked){ $('mPrice').value=mc.price; $('mLife').value=mc.life; }
+  specSource='db'; renderSpec(); recalc();
+}
+function markCustomSpec(){ if(specSource==='db'){ specSource='custom'; renderSpec(); } }
+function applyClassEstimate(){
+  const c=CLASSES[$('cClass').value]; if(!c) return;
+  $('pAvg').value=c.pAvg; $('pPeak').value=c.pPeak; $('pIdle').value=c.pIdle;
+  $('preheatMin').value=c.pre; $('chamberW').value=c.cham;
+  if($('wearAuto').checked){ $('mPrice').value=c.price; $('mLife').value=c.life; }
+  specSource='custom'; renderSpec(); recalc();
+}
+function machineName(){
+  const b=$('mBrand').value;
+  if(b==='__custom'){
+    const t=($('cBrand').value+' '+$('cModel').value).trim();
+    return t || 'Machine personnalisée';
+  }
+  const mc=currentMachine();
+  return b+' '+(mc?mc.m:'');
+}
+function webLookup(){
+  const q=encodeURIComponent(($('cBrand').value+' '+$('cModel').value).trim()+' 3d printer power consumption watts average');
+  window.open('https://duckduckgo.com/?q='+q,'_blank','noopener');
+}
+function renderSpec(){
+  const mc=currentMachine();
+  const badge = $('mBrand').value==='__custom'
+    ? '<span class="badge perso">personnalisée</span>'
+    : (specSource==='custom'
+        ? '<span class="badge perso">valeurs modifiées</span>'
+        : (mc && mc.src==='m'
+            ? '<span class="badge mesure">✓ mesuré au wattmètre</span>'
+            : '<span class="badge estime">≈ estimé par gabarit</span>'));
+  const pAvg=num('pAvg'), pPeak=num('pPeak'), pre=num('preheatMin');
+  $('specbox').innerHTML =
+    `<div class="head"><span class="name">${esc(machineName())}</span>${badge}</div>
+     <div class="specrow"><span>Régime PLA</span><b>${nb(pAvg)} W</b></div>
+     <div class="specrow"><span>Pic de chauffe (${nb(pre)} min)</span><b>${nb(pPeak)} W</b></div>
+     <div class="specrow"><span>Conso pour 10 h de PLA</span><b>${nb(pAvg*10/1000,2)} kWh</b></div>`;
+  $('tagMachine').textContent = machineName();
+}
+
+/* Coût horaire machine */
+function wearRate(){
+  if(!$('wearAuto').checked) return num('wearManual');
+  const dep = num('mPrice')*(1-clamp(num('mResid'),0,90)/100)/Math.max(1,num('mLife'));
+  const mnt = num('mMaint')/Math.max(1,num('mHYear'));
+  const noz = num('nozPrice')/Math.max(1,num('nozLife'));
+  const pla = num('plaPrice')/Math.max(1,num('plaLife'));
+  return dep+mnt+noz+pla+num('miscWear');
+}
+function toggleWear(){
+  const a=$('wearAuto').checked;
+  $('wearAutoWrap').style.display=a?'block':'none';
+  $('wearManualWrap').style.display=a?'none':'block';
+}
+function renderWearBox(){
+  const dep = num('mPrice')*(1-clamp(num('mResid'),0,90)/100)/Math.max(1,num('mLife'));
+  const mnt = num('mMaint')/Math.max(1,num('mHYear'));
+  const noz = num('nozPrice')/Math.max(1,num('nozLife'));
+  const pla = num('plaPrice')/Math.max(1,num('plaLife'));
+  const tot = wearRate();
+  $('wearBox').innerHTML = $('wearAuto').checked
+    ? `<div class="specrow"><span>Amortissement</span><b>${eur4(dep)}/h</b></div>
+       <div class="specrow"><span>Maintenance</span><b>${eur4(mnt)}/h</b></div>
+       <div class="specrow"><span>Buse</span><b>${eur4(noz)}/h</b></div>
+       <div class="specrow"><span>Plateau</span><b>${eur4(pla)}/h</b></div>
+       <div class="specrow"><span>Divers</span><b>${eur4(num('miscWear'))}/h</b></div>
+       <div class="specrow" style="border-top:1px solid var(--border);margin-top:.3rem;padding-top:.3rem">
+         <span style="color:var(--light);font-weight:600">Coût horaire machine</span><b style="color:var(--primary)">${eur4(tot)}/h</b></div>`
+    : `<div class="specrow"><span style="color:var(--light);font-weight:600">Coût horaire imposé</span><b style="color:var(--primary)">${eur4(tot)}/h</b></div>`;
+  $('tagUsure').textContent = eur4(tot)+'/h';
+}
+
+/* =====================================================================
+   MATIÈRES
+   ===================================================================== */
+function renderMaterials(){
+  $('matList').innerHTML =
+    `<div class="parts-head" style="grid-template-columns:1.5fr 70px 62px 62px 30px">
+       <span>Matière</span><span>€/kg</span><span>Densité</span><span>Fact. E</span><span></span></div>` +
+    MATERIALS.map((m,i)=>
+      `<div class="part-row" style="grid-template-columns:1.5fr 70px 62px 62px 30px">
+        <input class="name" type="text" value="${esc(m.n)}" onchange="editMat(${i},'n',this.value)">
+        <input type="number" step="0.5" value="${m.p}" onchange="editMat(${i},'p',this.value)">
+        <input type="number" step="0.01" value="${m.d}" onchange="editMat(${i},'d',this.value)">
+        <input type="number" step="0.05" value="${m.f}" onchange="editMat(${i},'f',this.value)">
+        <button class="icon danger" onclick="delMat(${i})" title="Supprimer">✕</button>
+      </div>`).join('');
+  $('tagMat').textContent = MATERIALS.length+' matières';
+}
+function editMat(i,k,v){
+  const old = MATERIALS[i].n;
+  MATERIALS[i][k] = (k==='n') ? v : (parseFloat(v)||0);
+  if(k==='n'){ parts.forEach(p=>{ if(p.mat===old) p.mat=v; }); renderParts(); }
+  recalc();
+}
+function delMat(i){
+  if(MATERIALS.length<=1) return;
+  const gone = MATERIALS[i].n;
+  MATERIALS.splice(i,1);
+  parts.forEach(p=>{ if(p.mat===gone) p.mat=MATERIALS[0].n; });
+  renderMaterials(); renderParts(); recalc();
+}
+function addMaterial(){
+  MATERIALS.push({n:"Nouvelle matière", p:25, d:1.24, f:1});
+  renderMaterials(); renderParts(); recalc();
+}
+
+/* =====================================================================
+   PIÈCES
+   ===================================================================== */
+let parts = [];
+let pid = 1;
+function blankPart(){ return {id:pid++, name:'Pièce '+pid, mat:MATERIALS[0].n, g:50, h:2, min:0, perPlate:1, qty:1, post:0}; }
+function addPart(){ parts.push(blankPart()); renderParts(); recalc(); }
+function duplicateLast(){
+  if(!parts.length) return addPart();
+  const c=Object.assign({},parts[parts.length-1]); c.id=pid++; parts.push(c); renderParts(); recalc();
+}
+function delPart(id){ parts=parts.filter(p=>p.id!==id); renderParts(); recalc(); }
+function editPart(id,k,v){
+  const p=parts.find(x=>x.id===id); if(!p) return;
+  p[k] = (k==='name'||k==='mat') ? v : (parseFloat(v)||0);
+  renderParts(); recalc();
+}
+function renderParts(){
+  if(!parts.length){
+    $('partsBody').innerHTML='<div class="empty">Aucune pièce. Cliquez sur « Ajouter une pièce ».</div>';
+    $('tagParts').textContent='0'; return;
+  }
+  const opts = m => MATERIALS.map(x=>`<option value="${esc(x.n)}"${x.n===m?' selected':''}>${esc(x.n)}</option>`).join('');
+  $('partsBody').innerHTML = parts.map(p=>{
+    const perPlate=Math.max(1,Math.round(p.perPlate)), qty=Math.max(0,Math.round(p.qty));
+    const plates = qty>0 ? Math.ceil(qty/perPlate) : 0;
+    const tPlate = p.h+p.min/60, tTot = plates*tPlate;
+    return `<div class="part-row">
+      <input class="name" type="text" value="${esc(p.name)}" onchange="editPart(${p.id},'name',this.value)">
+      <select onchange="editPart(${p.id},'mat',this.value)">${opts(p.mat)}</select>
+      <input type="number" step="0.1" min="0" value="${p.g}" onchange="editPart(${p.id},'g',this.value)">
+      <input type="number" step="1" min="0" value="${p.h}" onchange="editPart(${p.id},'h',this.value)">
+      <input type="number" step="1" min="0" value="${p.min}" onchange="editPart(${p.id},'min',this.value)">
+      <input type="number" step="1" min="1" value="${p.perPlate}" onchange="editPart(${p.id},'perPlate',this.value)">
+      <input type="number" step="1" min="0" value="${p.qty}" onchange="editPart(${p.id},'qty',this.value)">
+      <input type="number" step="1" min="0" value="${p.post}" onchange="editPart(${p.id},'post',this.value)">
+      <button class="icon danger" onclick="delPart(${p.id})" title="Supprimer">✕</button>
+      <div class="part-sub">
+        <span>Lancements : <b>${plates}</b></span>
+        <span>Temps machine : <b>${hhmm(tTot)}</b></span>
+        <span>Filament : <b>${nb(p.g*qty,0)} g</b></span>
+      </div>
+    </div>`;
+  }).join('');
+  $('tagParts').textContent = parts.length+' réf. / '+parts.reduce((s,p)=>s+Math.max(0,Math.round(p.qty)),0)+' pcs';
+}
+
+/* =====================================================================
+   MOTEUR DE CALCUL
+   -----------------------------------------------------------------
+   Principe : on sépare strictement
+     - les COÛTS FIXES de commande  → comptés UNE seule fois
+       (modélisation CAO, préparation/slicing, frais fixes, veille)
+     - les COÛTS VARIABLES par pièce → multipliés par la quantité
+       (matière, électricité, temps machine, post-traitement)
+   Le temps d'impression est compté par LANCEMENT (plateau), pas par pièce :
+   4 pièces sur un plateau = 1 chauffe et 1 durée de plateau, pas 4.
+   ===================================================================== */
+function compute(){
+  const prixElec = num('prixElec');
+  const ambient  = parseFloat($('ambient').value)||1;
+  const pAvg=num('pAvg'), pPeak=num('pPeak'), pIdle=num('pIdle');
+  const pre=num('preheatMin')/60, chamW=num('chamberW');
+  const dryerOn=$('dryerOn').checked, dryerW=num('dryerW');
+  const dryerSpools=Math.max(1,num('dryerSpools'));
+  const wear = wearRate();
+
+  const failRate = clamp(num('failRate')/100, 0, 0.9);
+  const failF = 1/(1-failRate);
+  const waste = Math.max(0,num('wastePct'))/100;
+
+  const rateDesign=num('rateDesign'), ratePrep=num('ratePrep'), ratePost=num('ratePost');
+
+  /* ---- coûts fixes de commande ---- */
+  const tDesign = num('designH')+num('designM')/60;
+  const amortN  = Math.max(1, Math.round(num('designAmort')));
+  const cDesign = tDesign*rateDesign/amortN;
+  const tPrep   = num('prepH')+num('prepM')/60;
+  const cPrep   = tPrep*ratePrep;
+  const cFees   = num('fixedFees');
+  const cIdle   = $('idleOn').checked ? pIdle*num('idleH')/1000*prixElec : 0;
+  const fixedTotal = cDesign+cPrep+cFees+cIdle;
+
+  /* ---- coûts variables, ligne par ligne ---- */
+  let sMat=0,sElec=0,sMach=0,sPost=0,sVar=0;
+  let totQty=0, totMassNet=0, totMassGross=0, totPrintH=0, totPlates=0, totKwh=0, totPostH=0;
+
+  const lines = parts.map(p=>{
+    const mat = MATERIALS.find(m=>m.n===p.mat) || MATERIALS[0];
+    const qty = Math.max(0, Math.round(p.qty));
+    const perPlate = Math.max(1, Math.round(p.perPlate));
+    const plates = qty>0 ? Math.ceil(qty/perPlate) : 0;
+    const tPlate = Math.max(0, p.h + p.min/60);
+    const tPrint = plates*tPlate;
+
+    const massNet   = p.g*qty;
+    const massGross = massNet*(1+waste);
+    const cMat = massGross/1000*mat.p;
+
+    /* enceinte chauffée : seulement pour les matières techniques */
+    const needChamber = mat.f >= 1.3;
+    const pEff = pAvg*mat.f*ambient + (needChamber?chamW:0);
+    const kWhRun = pEff*tPrint/1000;
+    const kWhPre = pPeak*pre*plates/1000;
+    const kWhDry = dryerOn ? dryerW*tPrint/1000/dryerSpools : 0;
+    const kWh = kWhRun+kWhPre+kWhDry;
+    const cElec = kWh*prixElec;
+
+    const cMach = tPrint*wear;
+    const tPost = Math.max(0,p.post)/60*qty;
+    const cPost = tPost*ratePost;
+
+    const risky = cMat+cElec+cMach;          // soumis au taux d'échec
+    const cost  = risky*failF + cPost;       // coût de revient variable de la ligne
+
+    sMat+=cMat*failF; sElec+=cElec*failF; sMach+=cMach*failF; sPost+=cPost; sVar+=cost;
+    totQty+=qty; totMassNet+=massNet; totMassGross+=massGross*failF;
+    totPrintH+=tPrint*failF; totPlates+=plates; totKwh+=kWh*failF; totPostH+=tPost;
+
+    return {p, mat, qty, perPlate, plates, tPlate, tPrint, massNet, massGross,
+            cMat, cElec, cMach, cPost, kWh, cost};
+  });
+
+  /* ---- marge, remise, plancher ---- */
+  const costTotal = fixedTotal + sVar;
+  const margePct  = num('marge')/100;
+  const discPct   = clamp(num('discount'),0,100)/100;
+  const k = (1+margePct)*(1-discPct);       // coefficient prix de vente
+
+  const rmode = $('rounding').value;
+  const mode  = $('dMode') ? $('dMode').value : 'detail';
+
+  /* Répartition des coûts fixes si mode "tout compris" */
+  const fixedWithK = fixedTotal*k;
+  lines.forEach(l=>{
+    const share = (mode==='allin' && sVar>0) ? fixedWithK*(l.cost/sVar) : 0;
+    l.sellRaw = l.cost*k + share;
+    l.unit    = l.qty>0 ? roundPrice(l.sellRaw/l.qty, rmode) : 0;
+    l.total   = Math.round(l.unit*l.qty*100)/100;
+    l.unitCost= l.qty>0 ? l.cost/l.qty : 0;
+  });
+
+  const partsHT = lines.reduce((s,l)=>s+l.total,0);
+  const svcLines = [];
+  if(mode!=='allin'){
+    const cd = Math.round(cDesign*k*100)/100;
+    const cp = Math.round((cPrep+cFees+cIdle)*k*100)/100;
+    if(cd>0) svcLines.push({
+      label:'Modélisation 3D / CAO',
+      sub: hhmm(tDesign)+' à '+eur(rateDesign)+'/h'+(amortN>1?' — amorti sur '+amortN+' commandes':'')+' — facturé une seule fois',
+      qty:1, unit:cd, total:cd});
+    if(cp>0) svcLines.push({
+      label:'Préparation, réglages et conditionnement',
+      sub: (tPrep>0? hhmm(tPrep)+' de préparation':'Forfait')+' — facturé une seule fois',
+      qty:1, unit:cp, total:cp});
+  }
+  const svcHT = svcLines.reduce((s,l)=>s+l.total,0);
+
+  let subHT = partsHT + svcHT;
+  const minOrder = num('minOrder');
+  const adj = subHT>0 && subHT<minOrder ? Math.round((minOrder-subHT)*100)/100 : 0;
+  subHT += adj;
+
+  const shipping = num('shipping');
+  const totalHT  = Math.round((subHT+shipping)*100)/100;
+
+  const vatRate = $('dVat') ? parseFloat($('dVat').value)||0 : 0;
+  const vat     = Math.round(totalHT*vatRate)/100;
+  const totalTTC= Math.round((totalHT+vat)*100)/100;
+
+  const grossMargin = totalHT - shipping - costTotal;
+  const humanH = tDesign/amortN + tPrep + totPostH;
+
+  return {
+    lines, svcLines, adj,
+    cDesign, cPrep, cFees, cIdle, fixedTotal,
+    sMat, sElec, sMach, sPost, sVar, costTotal,
+    margePct, discPct, k, wear, failRate, waste,
+    partsHT, svcHT, subHT, shipping, totalHT, vatRate, vat, totalTTC,
+    grossMargin, humanH,
+    totQty, totMassNet, totMassGross, totPrintH, totPlates, totKwh, totPostH,
+    tDesign, amortN, tPrep, mode
+  };
+}
+
+/* =====================================================================
+   AFFICHAGE DES RÉSULTATS
+   ===================================================================== */
+let R = null;
+
+function recalc(){
+  $('idleWrap').style.display  = $('idleOn').checked ? 'block':'none';
+  $('dryerWrap').style.display = $('dryerOn').checked ? 'block':'none';
+  renderWearBox();
+  renderSpec();
+  $('tagEnergie').textContent = nb(num('prixElec'),4).replace(',',',')+' €/kWh';
+  $('tagMO').textContent = nb(num('rateDesign'))+' / '+nb(num('ratePrep'))+' / '+nb(num('ratePost'))+' €/h';
+  $('tagMarge').textContent = nb(num('marge'))+' % marge · '+nb(num('failRate'))+' % échec';
+
+  if(!parts.length){
+    R=null;
+    $('results').innerHTML='<div class="empty">Ajoutez une pièce pour lancer le calcul.</div>';
+    $('tagResult').textContent='—';
+    $('partWarn').innerHTML='';
+    saveState(); return;
+  }
+  R = compute();
+  const r = R;
+
+  /* alertes de cohérence */
+  const w=[];
+  parts.forEach(p=>{
+    if(p.h+p.min/60<=0) w.push('« '+esc(p.name)+' » n\'a pas de temps d\'impression.');
+    if(p.g<=0) w.push('« '+esc(p.name)+' » n\'a pas de poids.');
+    if(p.perPlate>p.qty && p.qty>0) w.push('« '+esc(p.name)+' » : '+p.perPlate+' pcs/plateau pour '+p.qty+' pièce(s) commandée(s) — un plateau partiel est facturé plein.');
+  });
+  $('partWarn').innerHTML = w.length ? '<div class="warnbox">⚠ '+w.join('<br>')+'</div>' : '';
+
+  const seg = [
+    ['Matière',   r.sMat,  '#00bcd4'],
+    ['Élec.',     r.sElec, '#ffb300'],
+    ['Machine',   r.sMach, '#7e57c2'],
+    ['Post-trait.',r.sPost,'#26a69a'],
+    ['CAO',       r.cDesign,'#ff5722'],
+    ['Prépa+fixe',r.cPrep+r.cFees+r.cIdle,'#78909c']
+  ].filter(s=>s[1]>0.0001);
+  const segTot = seg.reduce((s,x)=>s+x[1],0)||1;
+
+  $('results').innerHTML = `
+  <div class="res-grid">
+    <div class="res-block">
+      <h3>Coûts variables <span style="text-transform:none;color:#5f676c">× quantité</span></h3>
+      <div class="line"><span>Filament (${nb(r.totMassGross,0)} g avec pertes)</span><b>${eur(r.sMat)}</b></div>
+      <div class="line"><span>Électricité (${nb(r.totKwh,2)} kWh)</span><b>${eur(r.sElec)}</b></div>
+      <div class="line"><span>Machine (${hhmm(r.totPrintH)} × ${eur4(r.wear)}/h)</span><b>${eur(r.sMach)}</b></div>
+      <div class="line"><span>Post-traitement (${hhmm(r.totPostH)})</span><b>${eur(r.sPost)}</b></div>
+      <div class="line sum"><span>Sous-total variable</span><b>${eur(r.sVar)}</b></div>
+      ${r.failRate>0?`<div class="line"><span style="color:#5f676c">dont provision d'échec ${nb(r.failRate*100)} %</span><b style="color:#5f676c">${eur((r.sMat+r.sElec+r.sMach)*r.failRate)}</b></div>`:''}
+    </div>
+    <div class="res-block">
+      <h3>Coûts fixes <span style="text-transform:none;color:#5f676c">comptés 1 ×</span></h3>
+      <div class="line"><span>Modélisation${r.amortN>1?' ÷ '+r.amortN:''} (${hhmm(r.tDesign)})</span><b>${eur(r.cDesign)}</b></div>
+      <div class="line"><span>Préparation (${hhmm(r.tPrep)})</span><b>${eur(r.cPrep)}</b></div>
+      <div class="line"><span>Frais fixes</span><b>${eur(r.cFees)}</b></div>
+      ${r.cIdle>0?`<div class="line"><span>Veille machine</span><b>${eur(r.cIdle)}</b></div>`:''}
+      <div class="line sum"><span>Sous-total fixe</span><b>${eur(r.fixedTotal)}</b></div>
+      <div class="line sum"><span>Coût de revient total</span><b>${eur(r.costTotal)}</b></div>
+    </div>
+  </div>
+
+  <div class="bar">${seg.map(s=>`<i style="background:${s[2]};width:${(s[1]/segTot*100).toFixed(2)}%"></i>`).join('')}</div>
+  <div class="legend">${seg.map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} ${nb(s[1]/segTot*100)} %</span>`).join('')}</div>
+
+  <div class="res-block" style="margin-top:1rem">
+    <h3>Prix de vente</h3>
+    ${r.lines.map(l=>`<div class="line">
+        <span>${esc(l.p.name)} — ${l.qty} × ${eur(l.unit)}<br>
+          <small style="color:#5f676c">revient ${eur(l.unitCost)}/pc · ${l.plates} lancement(s) · ${hhmm(l.tPrint)}</small></span>
+        <b>${eur(l.total)}</b></div>`).join('')}
+    ${r.svcLines.map(l=>`<div class="line"><span>${esc(l.label)}</span><b>${eur(l.total)}</b></div>`).join('')}
+    ${r.adj>0?`<div class="line neg"><span>Ajustement commande minimum</span><b>${eur(r.adj)}</b></div>`:''}
+    ${r.discPct>0?`<div class="line neg"><span>Remise ${nb(r.discPct*100)} % déjà déduite</span><b>−${eur(r.costTotal*(1+r.margePct)*r.discPct)}</b></div>`:''}
+    ${r.shipping>0?`<div class="line"><span>Expédition (hors marge)</span><b>${eur(r.shipping)}</b></div>`:''}
+    <div class="line sum"><span>Total HT</span><b>${eur(r.totalHT)}</b></div>
+    ${r.vatRate>0?`<div class="line"><span>TVA ${nb(r.vatRate,1)} %</span><b>${eur(r.vat)}</b></div>
+    <div class="line sum"><span>Total TTC</span><b>${eur(r.totalTTC)}</b></div>`:''}
+  </div>
+
+  <div class="hero">
+    <div>
+      <div class="k">Total à facturer</div>
+      <div class="v">${eur(r.vatRate>0?r.totalTTC:r.totalHT)}</div>
+      <div class="sub">${r.totQty} pièce(s) · ${r.totPlates} lancement(s) · ${hhmm(r.totPrintH)} machine</div>
+    </div>
+    <div>
+      <div class="k">Marge brute</div>
+      <div class="v alt">${eur(r.grossMargin)} <span style="font-size:.8rem;color:var(--muted)">(${nb(r.totalHT-r.shipping>0?r.grossMargin/(r.totalHT-r.shipping)*100:0,1)} %)</span></div>
+      <div class="sub">${r.humanH>0?'soit '+eur(r.grossMargin/r.humanH)+'/h de travail humain':'aucun temps humain saisi'}</div>
+    </div>
+  </div>`;
+
+  $('tagResult').textContent = eur(r.vatRate>0?r.totalTTC:r.totalHT);
+  saveState();
+}
+
+/* =====================================================================
+   DOCUMENT : DEVIS / FACTURE
+   ===================================================================== */
+let docKind = 'facture';
+let logoData = '';
+
+function nextNumber(kind){
+  const y = new Date().getFullYear();
+  const key = (kind==='facture'?'fa':'de')+'_'+y;
+  const n = parseInt(store.get('p3d_'+key)||'0',10)+1;
+  return (kind==='facture'?'FA-':'DE-')+y+'-'+String(n).padStart(4,'0');
+}
+function consumeNumber(kind){
+  const y = new Date().getFullYear();
+  const key = (kind==='facture'?'fa':'de')+'_'+y;
+  const cur = parseInt(store.get('p3d_'+key)||'0',10);
+  const used = parseInt(String($('dNum').value).replace(/^.*-/,''),10);
+  if(isFinite(used) && used>cur) store.set('p3d_'+key, String(used));
+}
+function openDoc(kind){
+  if(!parts.length){ toast('Ajoutez au moins une pièce.'); return; }
+  docKind = kind;
+  $('docTitle').textContent = kind==='facture'?'Facture':'Devis';
+  if(!$('dDate').value) $('dDate').value = new Date().toISOString().slice(0,10);
+  const pref = kind==='facture'?'FA-':'DE-';
+  if(!$('dNum').value || $('dNum').value.slice(0,3)!==pref) $('dNum').value = nextNumber(kind);
+  $('docOverlay').classList.add('on');
+  document.body.style.overflow='hidden';
+  renderDoc();
+}
+function closeDoc(){ $('docOverlay').classList.remove('on'); document.body.style.overflow=''; saveState(); }
+function loadLogo(inp){
+  const f = inp.files && inp.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = e => { logoData = e.target.result; $('logoBtns').style.display='flex'; renderDoc(); saveState(); };
+  rd.readAsDataURL(f);
+}
+function clearLogo(){ logoData=''; $('eLogo').value=''; $('logoBtns').style.display='none'; renderDoc(); saveState(); }
+
+function addDays(iso, d){
+  const dt = new Date(iso+'T12:00:00'); if(isNaN(dt)) return '';
+  dt.setDate(dt.getDate()+d); return dt.toISOString().slice(0,10);
+}
+const frDate = iso => { if(!iso) return '—'; const p=iso.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; };
+
+function renderDoc(){
+  if(!parts.length) return;
+  R = compute();
+  const r = R, isFa = docKind==='facture';
+  const vatRate = parseFloat($('dVat').value)||0;
+  const dateIso = $('dDate').value || new Date().toISOString().slice(0,10);
+  const due = addDays(dateIso, Math.max(0, Math.round(num('dTerms'))));
+  const isPro = $('cType').value==='pro';
+  const showTech = $('dShowDetail').checked;
+
+  /* Mention TVA : bascule légale au 1er janvier 2027 */
+  const vatMention = vatRate>0
+    ? 'TVA acquittée sur les débits.'
+    : (dateIso >= '2027-01-01'
+        ? 'TVA non applicable, article L. 233-1 du CIBS.'
+        : 'TVA non applicable, article 293 B du CGI.');
+
+  /* Nature de l'opération (mention obligatoire à partir de la facturation électronique) */
+  const nature = r.svcLines.length
+    ? 'Opération mixte (livraison de biens et prestation de services)'
+    : 'Livraison de biens';
+
+  const emitName = ($('eName').value||'').trim() || 'Votre nom';
+  const emitForm = $('eForm').value==='EI' ? ' — EI'
+                 : ($('eForm').value==='EIRL' ? ' — Entrepreneur individuel' : '');
+
+  const rows = [];
+  r.lines.forEach(l=>{
+    const tech = showTech
+      ? `<span class="desc-sub">${esc(l.mat.n)} · ${nb(l.p.g,0)} g/pc · ${hhmm(l.tPlate)} par plateau de ${l.perPlate} · ${l.plates} lancement(s)</span>`
+      : (r.mode==='allin' ? `<span class="desc-sub">${esc(l.mat.n)} — impression 3D FDM, modélisation et préparation incluses</span>`
+                          : `<span class="desc-sub">${esc(l.mat.n)} — impression 3D FDM</span>`);
+    rows.push(`<tr><td>${esc(l.p.name)}${tech}</td><td>${l.qty}</td><td>${eur(l.unit)}</td><td>${eur(l.total)}</td></tr>`);
+  });
+  r.svcLines.forEach(l=>{
+    rows.push(`<tr><td>${esc(l.label)}<span class="desc-sub">${esc(l.sub)}</span></td><td>${l.qty}</td><td>${eur(l.unit)}</td><td>${eur(l.total)}</td></tr>`);
+  });
+  if(r.adj>0) rows.push(`<tr><td>Forfait minimum de commande</td><td>1</td><td>${eur(r.adj)}</td><td>${eur(r.adj)}</td></tr>`);
+  if(r.shipping>0) rows.push(`<tr><td>Frais d'expédition</td><td>1</td><td>${eur(r.shipping)}</td><td>${eur(r.shipping)}</td></tr>`);
+
+  const vat = Math.round(r.totalHT*vatRate)/100;
+  const ttc = Math.round((r.totalHT+vat)*100)/100;
+
+  $('doc').innerHTML = `
+  <div class="d-top">
+    <div class="d-emit">
+      ${logoData?`<img class="d-logo" src="${logoData}" alt="">`:''}
+      <div class="n">${esc(emitName)}${esc(emitForm)}</div>
+      ${($('eAddr').value||'').split('\n').filter(Boolean).map(l=>`<div>${esc(l)}</div>`).join('')}
+      ${$('eSiren').value?`<div>SIREN ${esc($('eSiren').value)}</div>`:''}
+      ${$('eMail').value?`<div>${esc($('eMail').value)}</div>`:''}
+      ${$('ePhone').value?`<div>${esc($('ePhone').value)}</div>`:''}
+    </div>
+    <div class="d-title">
+      <h1>${isFa?'FACTURE':'DEVIS'}</h1>
+      <div class="meta">
+        <div><b>N° ${esc($('dNum').value)}</b></div>
+        <div>Émis le ${frDate(dateIso)}</div>
+        ${isFa
+          ? `<div>${$('dDeliv').value?'Livraison / exécution : '+frDate($('dDeliv').value):''}</div>
+             <div>Échéance : ${frDate(due)}</div>`
+          : `<div>Valable jusqu'au ${frDate(addDays(dateIso,30))}</div>`}
+      </div>
+    </div>
+  </div>
+
+  <div class="d-client">
+    <span class="lbl">${isFa?'Facturé à':'Destinataire'}</span>
+    <div class="n">${esc(($('cName').value||'').trim()||'Nom du client')}</div>
+    ${($('cAddr').value||'').split('\n').filter(Boolean).map(l=>`<div>${esc(l)}</div>`).join('')}
+    ${$('cSiren').value?`<div>SIREN ${esc($('cSiren').value)}</div>`:''}
+  </div>
+
+  ${$('dNotes').value?`<div class="d-notes">${esc($('dNotes').value)}</div>`:''}
+
+  <table>
+    <thead><tr><th>Désignation</th><th>Qté</th><th>P.U. HT</th><th>Total HT</th></tr></thead>
+    <tbody>${rows.join('')}</tbody>
+  </table>
+
+  <div class="d-tot"><table>
+    <tr><td>Total HT</td><td>${eur(r.totalHT)}</td></tr>
+    ${vatRate>0
+      ? `<tr><td>TVA ${nb(vatRate,1)} %</td><td>${eur(vat)}</td></tr>
+         <tr class="grand"><td>Total TTC</td><td>${eur(ttc)}</td></tr>`
+      : `<tr class="grand"><td>Net à payer</td><td>${eur(r.totalHT)}</td></tr>`}
+  </table></div>
+
+  ${isFa?`<div class="d-pay">
+    <div><span class="lbl">Règlement</span>${esc($('dPay').value||'—')}<br>Échéance : ${frDate(due)}</div>
+    ${$('eIban').value?`<div><span class="lbl">Coordonnées bancaires</span>IBAN ${esc($('eIban').value)}</div>`:''}
+  </div>`:`
+  <div class="d-sign"><div class="box"><b>Bon pour accord</b><br>Date et signature du client<br>précédées de la mention « lu et approuvé »</div></div>`}
+
+  <div class="d-legal">
+    <div><b>${esc(vatMention)}</b></div>
+    <div>Nature de l'opération : ${esc(nature)}.</div>
+    ${isFa?`
+    <div>Date limite de règlement : ${frDate(due)}. En cas de retard, des pénalités seront exigibles au taux de trois fois le taux d'intérêt légal en vigueur, sans qu'un rappel soit nécessaire.</div>
+    <div>Escompte pour paiement anticipé : néant.</div>
+    ${isPro?`<div>Indemnité forfaitaire pour frais de recouvrement en cas de retard : 40 € (art. L. 441-10 et D. 441-5 du Code de commerce).</div>`:''}
+    `:`<div>Devis gratuit et sans engagement, valable 30 jours à compter de sa date d'émission. Toute commande vaut acceptation des présentes conditions.</div>`}
+    <div>Pièces réalisées par fabrication additive FDM. Les tolérances dimensionnelles usuelles du procédé (± 0,2 mm) s'appliquent, sauf spécification contractuelle contraire.</div>
+  </div>`;
+}
+
+function printDoc(){
+  if(docKind==='facture') consumeNumber('facture'); else consumeNumber('devis');
+  window.print();
+}
+
+function downloadDocHTML(){
+  const css = Array.from(document.querySelectorAll('style')).map(s=>s.textContent).join('\n');
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<title>${esc($('dNum').value||docKind)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>${css}
+body{background:#fff;font-family:'Outfit',system-ui,sans-serif}
+#doc{max-width:210mm;margin:0 auto;box-shadow:none}
+@media print{@page{size:A4;margin:0}#doc{padding:14mm 13mm}}
+</style></head><body><div id="doc">${$('doc').innerHTML}</div></body></html>`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html],{type:'text/html'}));
+  a.download = ($('dNum').value||docKind)+'.html';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+  if(docKind==='facture') consumeNumber('facture'); else consumeNumber('devis');
+  toast('Document téléchargé');
+}
+
+/* =====================================================================
+   PERSISTANCE / EXPORT
+   ===================================================================== */
+const FIELDS = ['mBrand','mModel','cBrand','cModel','pAvg','pPeak','pIdle','preheatMin','chamberW',
+  'prixElec','ambient','idleH','dryerW','dryerSpools','mPrice','mLife','mResid','mMaint','mHYear',
+  'nozPrice','nozLife','plaPrice','plaLife','miscWear','wearManual','rateDesign','ratePrep','ratePost',
+  'designH','designM','designAmort','prepH','prepM','fixedFees','shipping','marge','failRate','wastePct',
+  'discount','rounding','minOrder','eName','eForm','eSiren','eAddr','eMail','ePhone','eIban',
+  'cName','cAddr','cSiren','cType','dNum','dDate','dDeliv','dTerms','dVat','dMode','dPay','dNotes'];
+const CHECKS = ['wearAuto','idleOn','dryerOn','dShowDetail'];
+
+function snapshot(){
+  const f={}; FIELDS.forEach(id=>{ const e=$(id); if(e) f[id]=e.value; });
+  const c={}; CHECKS.forEach(id=>{ const e=$(id); if(e) c[id]=e.checked; });
+  return {v:2, fields:f, checks:c, parts, materials:MATERIALS, logo:logoData, specSource};
+}
+function restore(d){
+  if(!d) return;
+  if(d.materials && d.materials.length){ MATERIALS = d.materials; renderMaterials(); }
+  if(d.fields){
+    if(d.fields.mBrand){ $('mBrand').value=d.fields.mBrand; onBrandSilent(d.fields.mBrand, d.fields.mModel); }
+    FIELDS.forEach(id=>{ if(id==='mBrand'||id==='mModel') return; const e=$(id); if(e && d.fields[id]!==undefined) e.value=d.fields[id]; });
+  }
+  if(d.checks) CHECKS.forEach(id=>{ const e=$(id); if(e && d.checks[id]!==undefined) e.checked=d.checks[id]; });
+  if(d.parts){ parts=d.parts; pid = parts.reduce((m,p)=>Math.max(m,p.id||0),0)+1; }
+  if(d.logo){ logoData=d.logo; $('logoBtns').style.display='flex'; }
+  if(d.specSource) specSource=d.specSource;
+  $('customMachine').style.display = $('mBrand').value==='__custom' ? 'block':'none';
+  toggleWear(); renderParts(); recalc();
+}
+function onBrandSilent(b, modelIdx){
+  const sel=$('mModel');
+  if(b==='__custom'){ sel.innerHTML='<option value="">(saisie libre)</option>'; return; }
+  sel.innerHTML=(MACHINES[b]||[]).map((x,i)=>`<option value="${i}">${esc(x.m)}</option>`).join('');
+  if(modelIdx!==undefined) sel.value=modelIdx;
+}
+let saveT;
+function saveState(){
+  clearTimeout(saveT);
+  saveT=setTimeout(()=>{ try{ store.set('p3d_state', JSON.stringify(snapshot())); }catch(e){} }, 400);
+}
+function exportJSON(){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'}));
+  a.download='calcul-3d-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  toast('Configuration exportée');
+}
+function importJSON(inp){
+  const f=inp.files&&inp.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=e=>{ try{ restore(JSON.parse(e.target.result)); toast('Configuration importée'); }
+                 catch(err){ toast('Fichier illisible'); } inp.value=''; };
+  rd.readAsText(f);
+}
+function resetAll(){
+  if(!confirm('Effacer tous les paramètres et repartir des valeurs par défaut ?')) return;
+  try{ localStorage.removeItem('p3d_state'); }catch(e){}
+  delete mem['p3d_state'];
+  location.reload();
+}
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+(function init(){
+  buildBrands();
+  $('mBrand').value='Bambu Lab';
+  onBrandSilent('Bambu Lab', 4);          // X1 Carbon
+  onModel();
+  renderMaterials();
+  toggleWear();
+
+  let saved=null;
+  try{ const raw=store.get('p3d_state'); if(raw) saved=JSON.parse(raw); }catch(e){}
+  if(saved) restore(saved);
+  else { parts=[blankPart()]; parts[0].name='Pièce'; renderParts(); recalc(); }
+
+  document.querySelector('.modal-head .primary').onclick = printDoc;
+  $('docOverlay').addEventListener('click', e => { if(e.target===$('docOverlay')) closeDoc(); });
+  document.addEventListener('keydown', e => { if(e.key==='Escape' && $('docOverlay').classList.contains('on')) closeDoc(); });
+  ['mPrice','mLife','mResid','mMaint','mHYear','nozPrice','nozLife','plaPrice','plaLife','miscWear','wearManual']
+    .forEach(id=>{ const e=$(id); if(e) e.addEventListener('input', recalc); });
+})();
+</script>
+</body>
+</html>

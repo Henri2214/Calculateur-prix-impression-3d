@@ -1,0 +1,19 @@
+# Données personnelles exportées depuis l'outil
+calcul-3d-*.json
+FA-*.html
+DE-*.html
+FA-*.pdf
+DE-*.pdf
+
+# Tests
+node_modules/
+
+# Copies de travail et sorties Claude
+Claude outputs/
+*.bak
+*.tmp
+
+# Systeme
+Thumbs.db
+desktop.ini
+.DS_Store
